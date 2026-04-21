@@ -157,22 +157,34 @@
             </div>
 
             <!-- BILLING -->
-            <div class="card">
-                <h3>🛒 Billing</h3>
-                <input id="search" placeholder="Search product or scan barcode" onkeyup="searchProduct()">
-                <button onclick="scanForAddToBill()" style="margin-top:8px; width:100%; padding:14px; background:#ff9800; font-size:17px;">📱 SCAN TO ADD TO INVOICE</button>
-                <div id="results"></div>
-                <div style="display:flex; gap:10px; margin:10px 0;">
-                    <input id="customerName" placeholder="Customer Name (Optional)" style="flex:1;">
-                    <input id="customerId" placeholder="Customer ID / NIT" style="flex:1;">
-                </div>
-                <table class="table" id="cartTable">
-                    <tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
-                </table>
-                <button onclick="generateBill()" class="success-btn" style="margin-top:15px; width:100%; padding:14px; font-size:17px;">Generate Sales Invoice</button>
-                <button onclick="clearCart()" class="danger-btn" style="margin-top:8px; width:100%;">Clear Cart</button>
-                <button onclick="restoreStock()" class="danger-btn" style="margin-top:8px; width:100%;">❌ Cancel Invoice & Restore Stock</button>
-            </div>
+<div class="card">
+    <h3>🛒 Billing</h3>
+    <input id="search" placeholder="Search product or scan barcode" onkeyup="searchProduct()">
+    <button onclick="scanForAddToBill()" style="margin-top:8px; width:100%; padding:14px; background:#ff9800; font-size:17px;">📱 SCAN TO ADD TO INVOICE</button>
+    
+    <div id="results"></div>
+    
+    <div style="display:flex; gap:10px; margin:12px 0;">
+        <input id="customerName" placeholder="Customer Name (Optional)" style="flex:1;">
+        <input id="customerId" placeholder="Customer ID / NIT" style="flex:1;">
+    </div>
+
+    <!-- NEW: Description / Notes Field -->
+    <label style="font-weight:600; margin:8px 0 6px 0; display:block; color:#1976d2;">
+        📝 Description / Notes (Optional)
+    </label>
+    <textarea id="billDescription" rows="3" 
+              placeholder="Add any notes, warranty info, service description, terms, etc..."
+              style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:15px; resize:vertical; min-height:80px;"></textarea>
+
+    <table class="table" id="cartTable">
+        <tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
+    </table>
+    
+    <button onclick="generateBill()" class="success-btn" style="margin-top:15px; width:100%; padding:14px; font-size:17px;">Generate Sales Invoice</button>
+    <button onclick="clearCart()" class="danger-btn" style="margin-top:8px; width:100%;">Clear Cart</button>
+    <button onclick="restoreStock()" class="danger-btn" style="margin-top:8px; width:100%;">❌ Cancel Invoice & Restore Stock</button>
+</div>
 
             <!-- INVOICE -->
             <div class="card">
@@ -755,6 +767,7 @@ async function generateBill() {
 
     let subtotal = 0;
     let itemsHTML = '';
+    
     cart.forEach(item => {
         const amount = item.qty * (item.price || 0);
         subtotal += amount;
@@ -774,11 +787,14 @@ async function generateBill() {
     const snapshot = await counterRef.once('value');
     let nextNumber = (snapshot.val() || 0) + 1;
     await counterRef.set(nextNumber);
-    const invoiceId = "INV-" + String(nextNumber).padStart(6, "0");
 
+    const invoiceId = "INV-" + String(nextNumber).padStart(6, "0");
     const currentDate = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     const customer = document.getElementById('customerName').value.trim() || "Cliente General";
     const customerIdVal = document.getElementById('customerId').value.trim() || "";
+    
+    // ✅ NEW: Get Description / Notes
+    const description = document.getElementById('billDescription').value.trim();
 
     adjustedTotal = Math.round(grandTotal);
 
@@ -789,10 +805,12 @@ async function generateBill() {
             <h1 style="margin:8px 0; color:#1976d2;">${storeConfig.businessName}</h1>
             <p>${storeConfig.address}<br>NIT: ${storeConfig.nit} | Tel: ${storeConfig.mobile}</p>
         </div>
+        
         <div style="display:flex; justify-content:space-between; background:#f8f9fa; padding:10px; border-radius:8px; margin-bottom:15px;">
             <div><strong>Factura:</strong> ${invoiceId}<br><strong>Fecha:</strong> ${currentDate}</div>
             <div style="text-align:right;"><strong>Cliente:</strong> ${customer}</div>
         </div>
+
         <table style="width:100%; border-collapse:collapse; margin:10px 0;">
             <thead><tr style="background:#1976d2; color:white;">
                 <th style="padding:8px; text-align:left;">Producto</th>
@@ -802,6 +820,7 @@ async function generateBill() {
             </tr></thead>
             <tbody>${itemsHTML}</tbody>
         </table>
+
         <div style="text-align:right;">
             <table style="margin-left:auto; font-size:15px;">
                 <tr><td>Subtotal:</td><td>$${subtotal.toLocaleString('es-CO')}</td></tr>
@@ -812,10 +831,17 @@ async function generateBill() {
             </table>
         </div>
 
+        <!-- ✅ NEW: Description / Notes Section (appears only if filled) -->
+        ${description ? `
+        <div style="margin:25px 0; padding:18px; background:#f9f9f9; border-left:6px solid #1976d2; border-radius:10px; font-size:15px;">
+            <strong>📝 Descripción / Notas:</strong><br><br>
+            <span style="white-space: pre-wrap; line-height:1.5;">${description}</span>
+        </div>` : ''}
+
         <div style="margin:25px 0; padding:15px; background:#f0f8ff; border:3px solid #1976d2; border-radius:12px; text-align:center;">
             <strong>MONTO A PAGAR (ajustable):</strong><br><br>
-            <input id="adjustAmount" type="number" value="${adjustedTotal}" 
-                   style="font-size:26px; text-align:center; width:280px; padding:10px; border:2px solid #1976d2; border-radius:8px;" 
+            <input id="adjustAmount" type="number" value="${adjustedTotal}"
+                   style="font-size:26px; text-align:center; width:280px; padding:10px; border:2px solid #1976d2; border-radius:8px;"
                    onchange="updateAdjustedAmount()">
             <div id="adjustedDisplay" style="margin-top:12px; font-size:22px; font-weight:700; color:#2e7d32;">
                 $${adjustedTotal.toLocaleString('es-CO')}
@@ -829,16 +855,18 @@ async function generateBill() {
                 <div><strong>PSE</strong><br><div id="pseQR" class="qr-container"></div></div>
             </div>
         </div>
+        
         <div style="text-align:center; margin-top:25px; color:#555;">Gracias por su compra 🛠️ • ¡Vuelva pronto!</div>
     </div>`;
 
+    // Render invoice on screen and in hidden PDF container
     document.getElementById('bill').innerHTML = billHTML;
     document.getElementById('pdfContainer').innerHTML = billHTML;
 
     // Generate QR codes
     setTimeout(() => generatePaymentQRs(adjustedTotal), 300);
 
-    // Save to Firebase
+    // Save to Firebase (including description)
     lastInvoiceCart = [...cart];
     cart.forEach(item => {
         db.ref('products/' + item.code).update({ qty: firebase.database.ServerValue.increment(-item.qty) });
@@ -853,13 +881,15 @@ async function generateBill() {
         iva: ivaAmount,
         total: grandTotal,
         adjustedTotal: adjustedTotal,
-        items: lastInvoiceCart
+        items: lastInvoiceCart,
+        description: description   // ← Saved for Google Sheets / future use
     });
 
+    // Clear cart and description field
     cart = [];
     renderCart();
+    document.getElementById('billDescription').value = '';   // Clear notes after invoice is generated
 }
-
 function generatePaymentQRs(amount) {
     const payAmount = Math.round(amount || 1000);
 
@@ -999,8 +1029,12 @@ function uploadFromFile() { document.getElementById('pimage').click(); }
 function captureProductPhoto() { uploadFromFile(); }
 
 function clearCart() {
-    if (confirm("Clear cart?")) { cart = []; renderCart(); }
-}
+    if (confirm("Clear cart?")) { 
+        cart = []; 
+        renderCart();
+        document.getElementById('billDescription').value = '';  // Clear notes too
+    }
+}}
 
 function restoreStock() {
     if (!lastInvoiceCart.length) return alert("No invoice to restore!");
